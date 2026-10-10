@@ -1,0 +1,229 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>이상한 나라의 앨리스 - 틀린 그림 찾기</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #0f172a;
+            color: #f8fafc;
+        }
+        .diff-marker {
+            position: absolute;
+            border: 3px solid #ef4444;
+            border-radius: 50%;
+            background-color: rgba(239, 68, 68, 0.2);
+            pointer-events: none;
+            transform: translate(-50%, -50%);
+            width: 50px;
+            height: 50px;
+            animation: pulse 1.5s infinite;
+        }
+        @keyframes pulse {
+            0% { transform: translate(-50%, -50%) scale(0.9); opacity: 1; }
+            50% { transform: translate(-50%, -50%) scale(1.1); opacity: 0.7; }
+            100% { transform: translate(-50%, -50%) scale(0.9); opacity: 1; }
+        }
+    </style>
+</head>
+<body class="min-h-screen flex flex-col items-center justify-between p-4">
+
+    <header class="w-full max-w-5xl flex flex-col sm:flex-row items-center justify-between bg-slate-800/80 p-4 rounded-2xl shadow-xl border border-slate-700 mb-4 gap-4">
+        <div class="text-center sm:text-left">
+            <h1 class="text-xl sm:text-2xl font-black text-amber-400 tracking-wider">🎩 이상한 나라의 앨리스 틀린그림찾기</h1>
+            <p class="text-xs sm:text-sm text-slate-300">오른쪽 그림에서 서로 다른 곳 <span class="text-red-400 font-bold">5곳</span>을 찾아보세요!</p>
+        </div>
+        
+        <div class="flex items-center gap-6">
+            <div class="flex items-center gap-1 bg-slate-900 px-4 py-2 rounded-xl border border-slate-700">
+                <span class="text-xs text-slate-400 font-bold mr-1">목숨:</span>
+                <div id="lives-container" class="flex gap-1 text-red-500 text-lg">❤️ ❤️ ❤️</div>
+            </div>
+            <div class="bg-slate-900 px-4 py-2 rounded-xl border border-slate-700 text-center">
+                <span class="text-xs text-slate-400 block">찾은 개수</span>
+                <span id="found-count" class="text-lg font-black text-emerald-400">0 / 5</span>
+            </div>
+        </div>
+    </header>
+
+    <main class="w-full max-w-5xl flex flex-col lg:flex-row gap-6 items-center justify-center relative">
+        
+        <!-- 원본 이미지 -->
+        <div class="w-full lg:w-1/2 flex flex-col items-center bg-slate-800 p-3 rounded-2xl border border-slate-700 shadow-lg">
+            <span class="text-sm font-semibold text-slate-300 mb-2">📋 기준 그림 (원본)</span>
+            <div class="relative w-full rounded-xl overflow-hidden border border-slate-600 bg-black">
+                <img src="https://images.unsplash.com/photo-1579783902614-a3fb3927b675?auto=format&fit=crop&w=800&q=80" alt="기준 그림" class="w-full h-auto object-contain select-none pointer-events-none" onerror="this.src='https://placehold.co/600x400/1e293b/cbd5e1?text=Original+Image'">
+            </div>
+        </div>
+
+        <!-- 플레이어 클릭 영역 이미지 -->
+        <div class="w-full lg:w-1/2 flex flex-col items-center bg-slate-800 p-3 rounded-2xl border border-slate-700 shadow-lg relative">
+            <span class="text-sm font-semibold text-amber-300 mb-2">🎯 틀린 곳을 찾아 클릭하세요!</span>
+            <div id="target-container" class="relative w-full rounded-xl overflow-hidden border border-slate-600 cursor-crosshair bg-black">
+                <img id="game-image" src="https://images.unsplash.com/photo-1579783902614-a3fb3927b675?auto=format&fit=crop&w=800&q=80" alt="틀린그림찾기" class="w-full h-auto object-contain select-none" onerror="this.src='https://placehold.co/600x400/1e293b/cbd5e1?text=Target+Image'">
+                <div id="markers-layer" class="absolute inset-0 pointer-events-none"></div>
+            </div>
+        </div>
+
+    </main>
+
+    <footer class="w-full max-w-5xl flex flex-col sm:flex-row items-center justify-between mt-6 gap-4 bg-slate-800/80 p-4 rounded-2xl border border-slate-700 shadow-xl">
+        <div id="message-box" class="text-sm font-medium text-slate-300 text-center sm:text-left">
+            ✨ 그림을 꼼꼼히 살펴보고 다른 부분을 클릭하세요!
+        </div>
+        <div class="flex items-center gap-3">
+            <button onclick="useHint()" id="hint-btn" class="bg-amber-600 hover:bg-amber-500 text-white font-bold px-5 py-2.5 rounded-xl shadow-lg transition transform active:scale-95 flex items-center gap-2 text-sm cursor-pointer">
+                💡 힌트 사용 (<span id="hint-count">3</span>)
+            </button>
+        </div>
+    </footer>
+
+    <div id="victory-modal" class="fixed inset-0 bg-black/80 backdrop-blur-sm hidden items-center justify-center p-4 z-50">
+        <div class="bg-slate-900 border border-amber-500/50 p-8 rounded-3xl max-w-md w-full text-center shadow-2xl space-y-6">
+            <div class="text-5xl">🎉</div>
+            <h2 class="text-2xl font-black text-amber-400">축하합니다! 모든 정답을 찾았어요!</h2>
+            <div class="bg-slate-800 p-4 rounded-2xl border border-slate-700 text-slate-200">
+                <p class="text-sm leading-relaxed">
+                    비밀스러운 모험을 완수했습니다!<br>다음 수수께끼 방으로 향할 수 있는 비밀번호는 다음과 같습니다:
+                </p>
+                <div class="text-4xl font-black text-emerald-400 my-3 tracking-widest bg-slate-900 py-3 rounded-xl border border-emerald-500/30">
+                    2024
+                </div>
+            </div>
+            <button onclick="resetGame()" class="w-full bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-slate-950 font-black py-3 px-6 rounded-xl shadow-lg transition transform active:scale-95 text-base cursor-pointer">
+                다시 하기
+            </button>
+        </div>
+    </div>
+
+    <script>
+        const differences = [
+            { id: 1, x: 25.0, y: 35.0, radius: 8, name: "모자의 토끼 장식" },
+            { id: 2, x: 50.0, y: 60.0, radius: 8, name: "중앙 주전자 문양" },
+            { id: 3, x: 75.0, y: 70.0, radius: 8, name: "우측 찻잔 모양" },
+            { id: 4, x: 30.0, y: 75.0, radius: 8, name: "왼쪽 아래 찻잔" },
+            { id: 5, x: 65.0, y: 30.0, radius: 8, name: "배경 나무 위치" }
+        ];
+
+        let foundList = [];
+        let lives = 3;
+        let hintsLeft = 3;
+
+        const gameImage = document.getElementById('game-image');
+        const targetContainer = document.getElementById('target-container');
+        const markersLayer = document.getElementById('markers-layer');
+        const foundCountEl = document.getElementById('found-count');
+        const livesContainer = document.getElementById('lives-container');
+        const messageBox = document.getElementById('message-box');
+        const hintCountEl = document.getElementById('hint-count');
+        const victoryModal = document.getElementById('victory-modal');
+
+        targetContainer.addEventListener('click', function(e) {
+            if (lives <= 0 || foundList.length === 5) return;
+
+            const rect = gameImage.getBoundingClientRect();
+            const clickX = ((e.clientX - rect.left) / rect.width) * 100;
+            const clickY = ((e.clientY - rect.top) / rect.height) * 100;
+
+            let hit = false;
+
+            differences.forEach(diff => {
+                if (!foundList.includes(diff.id)) {
+                    const distance = Math.sqrt(Math.pow(clickX - diff.x, 2) + Math.pow(clickY - diff.y, 2));
+                    if (distance <= diff.radius) {
+                        hit = true;
+                        foundList.push(diff.id);
+                        createMarker(diff.x, diff.y);
+                        updateUI();
+                        
+                        if (foundList.length === 5) {
+                            setTimeout(() => {
+                                victoryModal.classList.remove('hidden');
+                                victoryModal.classList.add('flex');
+                            }, 500);
+                        } else {
+                            messageBox.innerHTML = `✅ 정답입니다! (<span class="text-amber-400 font-bold">${diff.name}</span>을(를) 찾았습니다!)`;
+                            messageBox.className = "text-sm font-medium text-emerald-400 text-center sm:text-left";
+                        }
+                    }
+                }
+            });
+
+            if (!hit) {
+                lives--;
+                updateUI();
+                messageBox.innerHTML = `❌ 틀렸습니다! 다른 곳을 찾아보세요. (남은 목숨: ${lives})`;
+                messageBox.className = "text-sm font-medium text-red-400 text-center sm:text-left";
+
+                if (lives <= 0) {
+                    messageBox.innerHTML = `💀 게임 오버! 목숨을 모두 소진했습니다. 잠시 후 초기화됩니다.`;
+                    setTimeout(() => {
+                        resetGame();
+                    }, 2000);
+                }
+            }
+        });
+
+        function createMarker(x, y) {
+            const marker = document.createElement('div');
+            marker.className = 'diff-marker';
+            marker.style.left = `${x}%`;
+            marker.style.top = `${y}%`;
+            markersLayer.appendChild(marker);
+        }
+
+        function useHint() {
+            if (hintsLeft <= 0 || foundList.length === 5) return;
+
+            const remaining = differences.filter(d => !foundList.includes(d.id));
+            if (remaining.length > 0) {
+                const hintTarget = remaining[0];
+                hintsLeft--;
+                hintCountEl.textContent = hintsLeft;
+
+                const hintCircle = document.createElement('div');
+                hintCircle.style.position = 'absolute';
+                hintCircle.style.left = `${hintTarget.x}%`;
+                hintCircle.style.top = `${hintTarget.y}%`;
+                hintCircle.style.transform = 'translate(-50%, -50%)';
+                hintCircle.style.width = '70px';
+                hintCircle.style.height = '70px';
+                hintCircle.style.border = '4px dashed #fbbf24';
+                hintCircle.style.borderRadius = '50%';
+                hintCircle.style.pointerEvents = 'none';
+                hintCircle.style.zIndex = '10';
+                hintCircle.style.animation = 'pulse 1s infinite';
+                markersLayer.appendChild(hintCircle);
+
+                setTimeout(() => {
+                    hintCircle.remove();
+                }, 3000);
+
+                messageBox.innerHTML = `💡 힌트: 점선 원으로 표시된 주변을 확인해보세요!`;
+                messageBox.className = "text-sm font-medium text-amber-300 text-center sm:text-left";
+            }
+        }
+
+        function updateUI() {
+            foundCountEl.textContent = `${foundList.length} / 5`;
+            livesContainer.textContent = '❤️ '.repeat(lives).trim();
+            hintCountEl.textContent = hintsLeft;
+        }
+
+        function resetGame() {
+            foundList = [];
+            lives = 3;
+            hintsLeft = 3;
+            markersLayer.innerHTML = '';
+            victoryModal.classList.remove('flex');
+            victoryModal.classList.add('hidden');
+            messageBox.innerHTML = '✨ 그림을 꼼꼼히 살펴보고 다른 부분을 클릭하세요!';
+            messageBox.className = 'text-sm font-medium text-slate-300 text-center sm:text-left';
+            updateUI();
+        }
+    </script>
+</body>
+</html>
